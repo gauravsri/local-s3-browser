@@ -44,6 +44,6 @@ public class CustomUserDetailsService implements UserDetailsService {
             return false;
         }
         
-        return passwordEncoder.matches(password, passwordEncoder.encode(adminPassword));
+        return adminPassword.equals(password);
     }
 }

@@ -76,10 +76,10 @@ public class S3Controller {
 
     @Operation(summary = "Download object", description = "Download object content")
     @ApiResponse(responseCode = "200", description = "Successfully downloaded object")
-    @GetMapping("/objects/{key}/download")
+    @GetMapping("/objects/download")
     @PreAuthorize("hasAuthority('USER')")
     public ResponseEntity<ByteArrayResource> downloadObject(
-            @Parameter(description = "Object key") @PathVariable String key) {
+            @Parameter(description = "Object key") @RequestParam String key) {
         
         logger.info("Downloading object: {}", key);
         
@@ -100,10 +100,10 @@ public class S3Controller {
 
     @Operation(summary = "Upload object", description = "Upload a file to S3")
     @ApiResponse(responseCode = "201", description = "Successfully uploaded object")
-    @PostMapping("/objects/{key}")
+    @PostMapping("/objects")
     @PreAuthorize("hasAuthority('USER')")
     public ResponseEntity<String> uploadObject(
-            @Parameter(description = "Object key") @PathVariable String key,
+            @Parameter(description = "Object key") @RequestParam String key,
             @Parameter(description = "File to upload") @RequestParam("file") MultipartFile file) throws IOException {
         
         logger.info("Uploading object: {} (size: {} bytes)", key, file.getSize());
@@ -116,10 +116,10 @@ public class S3Controller {
 
     @Operation(summary = "Delete object", description = "Delete an object from S3")
     @ApiResponse(responseCode = "204", description = "Successfully deleted object")
-    @DeleteMapping("/objects/{key}")
+    @DeleteMapping("/objects")
     @PreAuthorize("hasAuthority('USER')")
     public ResponseEntity<Void> deleteObject(
-            @Parameter(description = "Object key") @PathVariable String key) {
+            @Parameter(description = "Object key") @RequestParam String key) {
         
         logger.info("Deleting object: {}", key);
         
@@ -139,6 +139,21 @@ public class S3Controller {
         List<String> buckets = s3Service.listBuckets();
         
         return ResponseEntity.ok(buckets);
+    }
+
+    @Operation(summary = "Create folder", description = "Create a new folder in S3")
+    @ApiResponse(responseCode = "201", description = "Successfully created folder")
+    @PostMapping("/folders")
+    @PreAuthorize("hasAuthority('USER')")
+    public ResponseEntity<String> createFolder(
+            @Parameter(description = "Folder path") @RequestParam String folderPath) {
+        
+        logger.info("Creating folder: {}", folderPath);
+        
+        s3Service.createFolder(folderPath);
+        
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body("Folder created successfully: " + folderPath);
     }
 
     @Operation(summary = "Test connection", description = "Test S3 connection")

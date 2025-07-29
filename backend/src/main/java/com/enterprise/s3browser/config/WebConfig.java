@@ -16,16 +16,16 @@ public class WebConfig implements WebMvcConfigurer {
         // Serve frontend files from classpath (embedded in JAR)
         registry.addResourceHandler("/**")
                 .addResourceLocations("classpath:/static/")
-                .setCachePeriod(3600); // Cache for production
+                .setCachePeriod(0); // No cache for development
         
         // Specific handlers for frontend assets
         registry.addResourceHandler("/css/**")
                 .addResourceLocations("classpath:/static/css/")
-                .setCachePeriod(86400); // 24 hours cache
+                .setCachePeriod(0); // No cache for development
         
         registry.addResourceHandler("/js/**")
                 .addResourceLocations("classpath:/static/js/")
-                .setCachePeriod(86400); // 24 hours cache
+                .setCachePeriod(0); // No cache for development
     }
 
     @Override

@@ -123,10 +123,11 @@ public class S3Service {
                     .collect(Collectors.toList()));
             }
             
-            // Add files
+            // Add files (excluding folder markers and objects that match prefix exactly)
             if (response.contents() != null) {
                 objects.addAll(response.contents().stream()
-                    .filter(obj -> !obj.key().endsWith("/"))
+                    .filter(obj -> !obj.key().endsWith("/")) // Exclude folder markers
+                    .filter(obj -> prefix == null || !obj.key().equals(prefix)) // Exclude exact prefix match
                     .map(obj -> new S3Object(
                         obj.key(),
                         obj.eTag(),
@@ -138,7 +139,7 @@ public class S3Service {
                     .collect(Collectors.toList()));
             }
 
-            logger.debug("Listed {} objects with prefix: {}", objects.size(), prefix);
+            logger.info("Listed {} objects with prefix: {}", objects.size(), prefix);
             return objects;
             
         } catch (Exception e) {
@@ -283,6 +284,34 @@ public class S3Service {
      */
     public S3Configuration getCurrentConfig() {
         return currentConfig;
+    }
+
+    /**
+     * Create a folder (directory) by uploading an empty object with trailing slash.
+     */
+    public void createFolder(String folderPath) {
+        try {
+            if (s3Client == null || currentConfig == null) {
+                throw new S3ServiceException("S3 client not initialized");
+            }
+            
+            // Ensure the folder path ends with a slash
+            String folderKey = folderPath.endsWith("/") ? folderPath : folderPath + "/";
+            
+            PutObjectRequest request = PutObjectRequest.builder()
+                .bucket(currentConfig.getBucket())
+                .key(folderKey)
+                .contentLength(0L)
+                .build();
+            
+            s3Client.putObject(request, RequestBody.empty());
+            
+            logger.info("Successfully created folder: {}", folderKey);
+            
+        } catch (Exception e) {
+            logger.error("Failed to create folder: {}", folderPath, e);
+            throw new S3ServiceException("Failed to create folder: " + e.getMessage(), e);
+        }
     }
 
     /**

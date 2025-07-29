@@ -56,6 +56,12 @@ class S3Browser {
                 this.search();
             }
         });
+        
+        // New folder form
+        document.getElementById('newFolderForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.createFolder();
+        });
     }
     
     checkAuth() {
@@ -193,15 +199,26 @@ class S3Browser {
             const modified = file.lastModified ? 
                 new Date(file.lastModified).toLocaleString() : '-';
             
+            const fileName = this.getFileName(file.key);
+            const clickableFileName = file.directory ? 
+                `<a href="#" class="text-decoration-none file-name-link" onclick="app.openFolder('${file.key}'); return false;">
+                    <span class="file-icon">${icon}</span>
+                    ${fileName}
+                </a>` :
+                `<a href="#" class="text-decoration-none file-name-link" onclick="app.downloadFile('${file.key}'); return false;">
+                    <span class="file-icon">${icon}</span>
+                    ${fileName}
+                </a>`;
+            
             const actions = file.directory ? 
                 `<button class="btn btn-sm btn-outline-primary" onclick="app.openFolder('${file.key}')">
-                    <i class="bi bi-folder-open"></i> Open
+                    <i class="bi bi-folder-open"></i>
                 </button>` :
                 `<div class="btn-group" role="group">
-                    <button class="btn btn-sm btn-outline-success" onclick="app.downloadFile('${file.key}')">
+                    <button class="btn btn-sm btn-outline-success" onclick="app.downloadFile('${file.key}')" title="Download">
                         <i class="bi bi-download"></i>
                     </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="app.deleteFile('${file.key}')">
+                    <button class="btn btn-sm btn-outline-danger" onclick="app.deleteFile('${file.key}')" title="Delete">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>`;
@@ -209,8 +226,7 @@ class S3Browser {
             return `
                 <tr>
                     <td>
-                        <span class="file-icon">${icon}</span>
-                        ${this.getFileName(file.key)}
+                        ${clickableFileName}
                     </td>
                     <td class="file-size">${size}</td>
                     <td>${modified}</td>
@@ -373,7 +389,9 @@ class S3Browser {
             const formData = new FormData();
             formData.append('file', file);
             
-            const response = await fetch(`${this.baseUrl}/s3/objects/${encodeURIComponent(key)}`, {
+            formData.append('key', key);
+            
+            const response = await fetch(`${this.baseUrl}/s3/objects`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.token}`
@@ -429,7 +447,7 @@ class S3Browser {
     
     async downloadFile(key) {
         try {
-            const response = await fetch(`${this.baseUrl}/s3/objects/${encodeURIComponent(key)}/download`, {
+            const response = await fetch(`${this.baseUrl}/s3/objects/download?key=${encodeURIComponent(key)}`, {
                 headers: {
                     'Authorization': `Bearer ${this.token}`
                 }
@@ -459,7 +477,7 @@ class S3Browser {
         }
         
         try {
-            const response = await fetch(`${this.baseUrl}/s3/objects/${encodeURIComponent(key)}`, {
+            const response = await fetch(`${this.baseUrl}/s3/objects?key=${encodeURIComponent(key)}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${this.token}`
@@ -585,6 +603,45 @@ class S3Browser {
         this.loadFiles(this.currentPath);
     }
     
+    async createFolder() {
+        const form = document.getElementById('newFolderForm');
+        const formData = new FormData(form);
+        const folderName = formData.get('folderName').trim();
+        
+        if (!folderName) {
+            this.showError('folderError', 'Folder name cannot be empty');
+            return;
+        }
+        
+        // Validate folder name
+        if (folderName.includes('/') || folderName.includes('\\')) {
+            this.showError('folderError', 'Folder name cannot contain / or \\');
+            return;
+        }
+        
+        const folderPath = this.currentPath + folderName;
+        
+        try {
+            const response = await fetch(`${this.baseUrl}/s3/folders?folderPath=${encodeURIComponent(folderPath)}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            });
+            
+            if (response.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('newFolderModal')).hide();
+                form.reset();
+                this.refresh();
+            } else {
+                const error = await response.text();
+                this.showError('folderError', 'Failed to create folder: ' + error);
+            }
+        } catch (error) {
+            this.showError('folderError', 'Connection error: ' + error.message);
+        }
+    }
+    
     showLoading(show) {
         const spinner = document.getElementById('loadingSpinner');
         const table = document.getElementById('filesTable');
@@ -644,6 +701,10 @@ function selectFiles() {
 
 function testConfiguration() {
     app.testConfiguration();
+}
+
+function createFolder() {
+    app.createFolder();
 }
 
 // Initialize application
